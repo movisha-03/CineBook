@@ -1,0 +1,20 @@
+# Database credentials
+backend/src/main/resources/application.properties
+
+# Java build files
+backend/target/
+*.class
+
+# Python cache
+__pycache__/
+*.pyc
+analytics/venv/
+analytics/.venv/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
