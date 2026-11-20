@@ -1,28 +1,35 @@
 
 import os
-import mysql.connector
 import traceback
+import mysql.connector
 
-print("PYTHON STARTED", flush=True)
-print("PASSWORD SET:", bool(os.getenv("DB_PASSWORD")), flush=True)
+print("CINEBOOK DATABASE TEST", flush=True)
 
 try:
-    print("CONNECTING TO MYSQL...", flush=True)
+    print("Connecting to MySQL...", flush=True)
 
     conn = mysql.connector.connect(
         host="127.0.0.1",
         port=3306,
-        user="root",
-        password=os.getenv("DB_PASSWORD", ""),
         database="cinebook_db",
+        user="root",
+        password=os.environ.get("DB_PASSWORD", ""),
         connection_timeout=5,
         use_pure=True
     )
 
     print("DATABASE CONNECTED SUCCESSFULLY!", flush=True)
+
+    cursor = conn.cursor()
+    cursor.execute("SELECT DATABASE()")
+
+    print("Connected database:", cursor.fetchone()[0], flush=True)
+
+    cursor.close()
     conn.close()
 
-except BaseException:
-    traceback.print_exc()
+    print("CONNECTION CLOSED SUCCESSFULLY", flush=True)
 
-print("TEST FINISHED", flush=True)
+except Exception as e:
+    print("DATABASE CONNECTION ERROR:", repr(e), flush=True)
+    traceback.print_exc()

@@ -3,199 +3,385 @@ import os
 from pathlib import Path
 
 import pandas as pd
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 import mysql.connector
 from mysql.connector import Error
 
 
-# Output folder for analytics charts
-OUT = Path(__file__).resolve().parent / "output"
-OUT.mkdir(exist_ok=True)
+# ==================================================
+# 1. CINEBOOK ANALYTICS START
+# ==================================================
+
+print("======================================", flush=True)
+print("       CINEBOOK ANALYTICS SYSTEM", flush=True)
+print("======================================", flush=True)
 
 
-def main():
+# ==================================================
+# 2. OUTPUT DIRECTORY
+# ==================================================
 
-    print("ANALYTICS STARTED")
+PROJECT_DIR = Path(__file__).resolve().parent.parent
 
-    conn = None
+OUTPUT_DIR = (
+    PROJECT_DIR
+    / "backend"
+    / "src"
+    / "main"
+    / "resources"
+    / "static"
+    / "analytics"
+)
 
-    try:
-        # Step 1: Connect to MySQL database
-        conn = mysql.connector.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", "3306")),
-            database=os.getenv("DB_NAME", "cinebook_db"),
-            user=os.getenv("DB_USERNAME", "root"),
-            password=os.getenv("DB_PASSWORD", ""),
-            use_pure=True
-        )
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-        if conn.is_connected():
-            print("DATABASE CONNECTED SUCCESSFULLY")
+print("Output directory:", OUTPUT_DIR, flush=True)
 
-        # Step 2: SQL query to collect movie sales data
-        query = """
-        WITH sales AS (
-            SELECT
-                b.show_id,
-                COUNT(bs.seat_id) AS booked_seats,
-                SUM(bs.ticket_price) AS gross_sales
-            FROM bookings b
-            JOIN booking_seats bs
-                ON bs.booking_id = b.booking_id
-            WHERE b.booking_status = 'CONFIRMED'
-            GROUP BY b.show_id
-        ),
 
-        refund_totals AS (
-            SELECT
-                b.show_id,
-                SUM(p.amount) AS refunds
-            FROM bookings b
-            JOIN payments p
-                ON p.booking_id = b.booking_id
-            WHERE p.payment_status = 'REFUNDED'
-            GROUP BY b.show_id
-        )
+# ==================================================
+# 3. MYSQL DATABASE CONNECTION
+# ==================================================
 
+connection = None
+
+try:
+
+    print("\nConnecting to MySQL database...", flush=True)
+
+    connection = mysql.connector.connect(
+        host="127.0.0.1",
+        port=3306,
+        database="cinebook_db",
+        user="root",
+        password=os.getenv("DB_PASSWORD", ""),
+        connection_timeout=5,
+        use_pure=True
+    )
+
+    if connection.is_connected():
+        print("DATABASE CONNECTED SUCCESSFULLY!", flush=True)
+
+
+    # ==================================================
+    # 4. FETCH SHOW AND BOOKING DATA
+    # ==================================================
+
+    print("\nFetching booking data...", flush=True)
+
+    query = """
         SELECT
-            m.title AS movie_title,
+            s.show_id,
             s.show_date,
+            s.show_time,
+            s.ticket_price,
+            m.title AS movie_title,
             sc.capacity,
-            COALESCE(sa.booked_seats, 0) AS booked_seats,
-            COALESCE(sa.gross_sales, 0) AS gross_sales,
-            COALESCE(rt.refunds, 0) AS refunds
+            COUNT(bs.seat_id) AS booked_seats,
+            COALESCE(SUM(bs.ticket_price), 0) AS gross_sales
 
         FROM shows s
 
-        JOIN movies m
-            ON m.movie_id = s.movie_id
+        INNER JOIN movies m
+            ON s.movie_id = m.movie_id
 
-        JOIN screens sc
-            ON sc.screen_id = s.screen_id
+        INNER JOIN screens sc
+            ON s.screen_id = sc.screen_id
 
-        LEFT JOIN sales sa
-            ON sa.show_id = s.show_id
+        LEFT JOIN (
+            SELECT
+                b.show_id,
+                bs.seat_id,
+                bs.ticket_price
 
-        LEFT JOIN refund_totals rt
-            ON rt.show_id = s.show_id
+            FROM bookings b
 
-        ORDER BY s.show_date
-        """
+            INNER JOIN booking_seats bs
+                ON b.booking_id = bs.booking_id
 
-        # Step 3: Load SQL data into Pandas DataFrame
-        df = pd.read_sql(query, conn)
+            WHERE b.booking_status = 'CONFIRMED'
 
-        print("\nDATABASE DATA LOADED SUCCESSFULLY")
+        ) bs
+            ON s.show_id = bs.show_id
 
-        if df.empty:
-            print("No show data found. Add movies and shows first.")
-            return
+        GROUP BY
+            s.show_id,
+            s.show_date,
+            s.show_time,
+            s.ticket_price,
+            m.title,
+            sc.capacity
 
-        # Step 4: Convert numerical columns
-        numeric_columns = [
-            "capacity",
-            "booked_seats",
-            "gross_sales",
-            "refunds"
-        ]
+        ORDER BY
+            s.show_date,
+            s.show_time
+    """
 
-        for col in numeric_columns:
-            df[col] = pd.to_numeric(
-                df[col], errors="coerce"
-            ).fillna(0)
+    df = pd.read_sql(query, connection)
 
-        # Step 5: Calculate theatre occupancy percentage
-        valid_capacity = df["capacity"].where(df["capacity"] > 0)
+    print("BOOKING DATA FETCHED SUCCESSFULLY!", flush=True)
+    print("Total shows:", len(df), flush=True)
 
-        df["occupancy_pct"] = (
-            df["booked_seats"] / valid_capacity * 100
-        ).fillna(0)
 
-        # Step 6: Calculate net revenue
-        df["net_revenue"] = (
-            df["gross_sales"] - df["refunds"]
-        )
+    # ==================================================
+    # 5. DATA PROCESSING
+    # ==================================================
 
-        # Step 7: Generate movie-wise summary
-        summary = df.groupby(
-            "movie_title", as_index=False
-        ).agg(
-            tickets_sold=("booked_seats", "sum"),
-            gross_sales=("gross_sales", "sum"),
-            refunds=("refunds", "sum"),
-            net_revenue=("net_revenue", "sum"),
-            average_occupancy=("occupancy_pct", "mean")
-        )
+    if df.empty:
 
-        # Step 8: Display analytics report
-        print("\n========== CINEBOOK ANALYTICS REPORT ==========")
+        print("No show data available.", flush=True)
 
-        print(
-            summary.sort_values(
-                "net_revenue", ascending=False
-            ).to_string(index=False)
-        )
+    else:
 
-        # Step 9: Net revenue chart
-        summary.plot(
-            x="movie_title",
-            y="net_revenue",
-            kind="bar",
-            legend=False,
-            title="Net Revenue by Movie"
-        )
+        df["booked_seats"] = df["booked_seats"].fillna(0)
 
-        plt.ylabel("Revenue (INR)")
-        plt.tight_layout()
-        plt.savefig(OUT / "revenue_by_movie.png")
-        plt.close()
+        df["gross_sales"] = df["gross_sales"].fillna(0)
 
-        # Step 10: Theatre occupancy trend chart
+        df["capacity"] = df["capacity"].fillna(0)
+
+        df["occupancy"] = (
+            df["booked_seats"]
+            / df["capacity"].replace(0, pd.NA)
+        ) * 100
+
+        df["occupancy"] = df["occupancy"].fillna(0)
+
         df["show_date"] = pd.to_datetime(df["show_date"])
 
-        df.groupby("show_date")["occupancy_pct"].mean().plot(
-            kind="line",
+        print("DATA PROCESSING COMPLETED!", flush=True)
+
+
+        # ==================================================
+        # 6. MOVIE-WISE REVENUE ANALYSIS
+        # ==================================================
+
+        movie_summary = (
+            df.groupby("movie_title")
+            .agg(
+                total_booked_seats=("booked_seats", "sum"),
+                total_revenue=("gross_sales", "sum"),
+                total_shows=("show_id", "count")
+            )
+            .reset_index()
+            .sort_values(
+                by="total_revenue",
+                ascending=False
+            )
+        )
+
+        print("\nMOVIE-WISE SUMMARY")
+        print(movie_summary)
+
+
+        # ==================================================
+        # 7. CHART 1 - MOVIE REVENUE
+        # ==================================================
+
+        plt.figure(figsize=(12, 6))
+
+        plt.bar(
+            movie_summary["movie_title"],
+            movie_summary["total_revenue"],
+            color="#e63946"
+        )
+
+        plt.title(
+            "Movie-wise Revenue Analysis",
+            fontsize=16,
+            fontweight="bold"
+        )
+
+        plt.xlabel("Movie Name")
+        plt.ylabel("Revenue (INR)")
+
+        plt.xticks(
+            rotation=35,
+            ha="right"
+        )
+
+        plt.grid(
+            axis="y",
+            linestyle="--",
+            alpha=0.3
+        )
+
+        plt.tight_layout()
+
+        plt.savefig(
+            OUTPUT_DIR / "movie_revenue.png",
+            dpi=200,
+            bbox_inches="tight"
+        )
+
+        plt.close()
+
+        print("Chart 1: Movie Revenue Generated!", flush=True)
+
+
+        # ==================================================
+        # 8. CHART 2 - SHOW OCCUPANCY
+        # ==================================================
+
+        occupancy_df = df.sort_values(
+            by=["show_date", "show_time"]
+        ).copy()
+
+        plt.figure(figsize=(16, 7))
+
+        plt.bar(
+            occupancy_df["show_id"].astype(str),
+            occupancy_df["occupancy"],
+            color="#e63946",
+            width=0.7
+        )
+
+        plt.title(
+            "Show-wise Seat Occupancy",
+            fontsize=16,
+            fontweight="bold"
+        )
+
+        plt.xlabel("Show ID", fontsize=12)
+        plt.ylabel("Occupancy Percentage (%)", fontsize=12)
+
+        plt.ylim(0, 100)
+
+        # Display selected Show IDs to avoid overlapping labels
+        tick_step = max(
+            1,
+            len(occupancy_df) // 15
+        )
+
+        tick_positions = list(
+            range(0, len(occupancy_df), tick_step)
+        )
+
+        plt.xticks(
+            tick_positions,
+            occupancy_df["show_id"].astype(str).iloc[
+                tick_positions
+            ],
+            rotation=45,
+            ha="right"
+        )
+
+        plt.grid(
+            axis="y",
+            linestyle="--",
+            alpha=0.3
+        )
+
+        plt.tight_layout()
+
+        plt.savefig(
+            OUTPUT_DIR / "show_occupancy.png",
+            dpi=200,
+            bbox_inches="tight"
+        )
+
+        plt.close()
+
+        print("Chart 2: Show Occupancy Generated!", flush=True)
+
+
+        # ==================================================
+        # 9. CHART 3 - DAILY REVENUE
+        # ==================================================
+
+        daily_summary = (
+            df.groupby("show_date")["gross_sales"]
+            .sum()
+            .reset_index()
+            .sort_values("show_date")
+        )
+
+        plt.figure(figsize=(12, 6))
+
+        plt.plot(
+            daily_summary["show_date"],
+            daily_summary["gross_sales"],
             marker="o",
-            title="Average Theatre Occupancy"
+            color="#e63946",
+            linewidth=2
         )
 
-        plt.ylabel("Occupancy (%)")
-        plt.tight_layout()
-        plt.savefig(OUT / "occupancy_trend.png")
-        plt.close()
-
-        # Step 11: Movie popularity chart
-        summary.sort_values(
-            "tickets_sold"
-        ).plot(
-            x="movie_title",
-            y="tickets_sold",
-            kind="barh",
-            legend=False,
-            title="Movie Popularity"
+        plt.title(
+            "Daily Revenue Analysis",
+            fontsize=16,
+            fontweight="bold"
         )
 
-        plt.xlabel("Tickets Sold")
+        plt.xlabel("Show Date")
+        plt.ylabel("Revenue (INR)")
+
+        plt.xticks(rotation=35)
+
+        plt.grid(
+            linestyle="--",
+            alpha=0.3
+        )
+
         plt.tight_layout()
-        plt.savefig(OUT / "movie_popularity.png")
+
+        plt.savefig(
+            OUTPUT_DIR / "daily_revenue.png",
+            dpi=200,
+            bbox_inches="tight"
+        )
+
         plt.close()
 
-        # Step 12: Final output
-        print("\nANALYTICS COMPLETED SUCCESSFULLY!")
-        print("Charts saved in:", OUT)
-
-    except Error as e:
-        print("\nDATABASE ERROR:", e)
-
-    except Exception as e:
-        print("\nERROR:", e)
-
-    finally:
-        if conn is not None and conn.is_connected():
-            conn.close()
-            print("\nDATABASE CONNECTION CLOSED")
+        print("Chart 3: Daily Revenue Generated!", flush=True)
 
 
-if __name__ == "__main__":
-    main()
+        # ==================================================
+        # 10. SAVE MOVIE SUMMARY CSV
+        # ==================================================
+
+        movie_summary.to_csv(
+            OUTPUT_DIR / "movie_summary.csv",
+            index=False
+        )
+
+        print("Movie Summary CSV Generated!", flush=True)
+
+
+        # ==================================================
+        # 11. SUCCESS MESSAGE
+        # ==================================================
+
+        print("\n======================================")
+        print("  ANALYTICS COMPLETED SUCCESSFULLY!")
+        print("======================================")
+
+        print("\nGenerated Files:")
+
+        print("1. movie_revenue.png")
+        print("2. show_occupancy.png")
+        print("3. daily_revenue.png")
+        print("4. movie_summary.csv")
+
+        print("\nSaved Location:")
+        print(OUTPUT_DIR)
+
+
+except Error as e:
+
+    print("\nMYSQL DATABASE ERROR:", e, flush=True)
+
+
+except Exception as e:
+
+    print("\nANALYTICS ERROR:", e, flush=True)
+
+
+finally:
+
+    if connection is not None and connection.is_connected():
+
+        connection.close()
+
+        print("\nDATABASE CONNECTION CLOSED", flush=True)

@@ -1,6 +1,8 @@
 
 package com.cinebook.service;
 
+import com.cinebook.BookingCompletedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -18,9 +20,14 @@ import java.util.*;
 public class CineBookService {
 
     private final JdbcTemplate jdbc;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public CineBookService(JdbcTemplate jdbc) {
+    public CineBookService(
+        JdbcTemplate jdbc,
+        ApplicationEventPublisher eventPublisher
+    ) {
         this.jdbc = jdbc;
+        this.eventPublisher = eventPublisher;
     }
 
     public List<Map<String,Object>> getMovies() {
@@ -186,6 +193,11 @@ public class CineBookService {
         jdbc.update(
             "INSERT INTO payments(booking_id,amount,payment_method,payment_status,paid_at) VALUES(?,?,'DEMO','SUCCESS',NOW())",
             bookingId, total
+        );
+
+        // Trigger analytics after booking transaction commits
+        eventPublisher.publishEvent(
+            new BookingCompletedEvent(bookingId.intValue())
         );
 
         return Map.of(

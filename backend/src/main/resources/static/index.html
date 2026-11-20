@@ -1,10 +1,256 @@
+
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CineBook</title><link rel="stylesheet" href="/styles.css"></head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CineBook - Movie Ticket Booking</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
 <body>
-<header class="topbar"><a class="brand" href="/">CINE<span>BOOK</span></a><nav><a href="#movies">Movies</a><a href="#booking">Book tickets</a><a href="#admin">Admin demo</a></nav></header>
+
+<header class="topbar">
+    <a class="brand" href="/">CINE<span>BOOK</span></a>
+
+    <nav>
+        <a href="#movies">Movies</a>
+        <a href="#booking">Book Tickets</a>
+        <a href="#analytics">FDS Analytics</a>
+        <a href="#admin">Admin Demo</a>
+    </nav>
+</header>
+
 <main>
-<section class="hero"><div><p class="eyebrow">YOUR MOVIE NIGHT STARTS HERE</p><h1>Big stories.<br><span>Better seats.</span></h1><p>Discover movies, choose your show and book your favourite seats.</p><a class="primary-btn" href="#movies">Explore movies</a></div><div class="hero-art"><div class="film-circle">▶</div><p>THE BIG SCREEN EXPERIENCE</p></div></section>
-<section id="movies" class="section"><div class="section-heading"><div><p class="eyebrow">NOW SHOWING</p><h2>Choose your movie</h2></div><button class="outline-btn" onclick="loadMovies()">Refresh</button></div><div id="movieList" class="movie-grid">Loading movies...</div></section>
-<section id="booking" class="section booking-panel"><p class="eyebrow">QUICK BOOKING</p><h2>Book your seats</h2><div class="form-grid"><label>Show<select id="showSelect"><option value="">Select a show</option></select></label><label>Your name<input id="customerName" placeholder="Your name"></label><label>Email<input id="customerEmail" type="email" placeholder="you@example.com"></label></div><div class="screen">SCREEN THIS WAY</div><div id="seatGrid" class="seat-grid">Select a show to view seats.</div><div class="seat-legend"><span>🟩 Available</span><span>🟥 Booked</span><span>🟨 Selected</span></div><div class="booking-bottom"><p id="totalText">Total: ₹0</p><button class="primary-btn" onclick="bookSelectedSeats()">Confirm demo booking</button></div><div id="bookingMessage" class="message"></div></section>
-<section id="admin" class="section admin-panel"><p class="eyebrow">MANAGEMENT</p><h2>Admin quick action</h2><p class="muted">Demo form only. Admin authentication will be added in the security phase.</p><form id="movieForm" class="form-grid"><label>Movie title<input name="title" required></label><label>Genre<input name="genre" required></label><label>Language<input name="language" required></label><label>Duration (minutes)<input name="durationMinutes" type="number" min="1" required></label><label>Release date<input name="releaseDate" type="date" required></label><label>Poster URL<input name="posterUrl"></label><label class="wide">Description<input name="description"></label><button class="primary-btn" type="submit">Add movie</button></form><div id="adminMessage" class="message"></div></section>
-</main><footer>© 2026 CineBook · College project demo</footer><script src="/app.js"></script></body></html>
+
+    <!-- HERO SECTION -->
+    <section class="hero">
+        <div>
+            <p class="eyebrow">YOUR MOVIE NIGHT STARTS HERE</p>
+
+            <h1>
+                Big stories.<br>
+                <span>Better seats.</span>
+            </h1>
+
+            <p>
+                Discover movies, choose your show
+                and book your favourite seats.
+            </p>
+
+            <a class="primary-btn" href="#movies">
+                Explore Movies
+            </a>
+        </div>
+
+        <div class="hero-art">
+            <div class="film-circle">▶</div>
+            <p>THE BIG SCREEN EXPERIENCE</p>
+        </div>
+    </section>
+
+
+    <!-- MOVIES SECTION -->
+    <section id="movies" class="section">
+
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">NOW SHOWING</p>
+                <h2>Choose Your Movie</h2>
+            </div>
+
+            <button class="outline-btn" onclick="loadMovies()">
+                Refresh
+            </button>
+        </div>
+
+        <div id="movieList" class="movie-grid">
+            Loading movies...
+        </div>
+
+    </section>
+
+
+    <!-- BOOKING SECTION -->
+    <section id="booking" class="section booking-panel">
+
+        <p class="eyebrow">QUICK BOOKING</p>
+        <h2>Book Your Seats</h2>
+
+        <div class="form-grid">
+
+            <label>
+                Show
+                <select id="showSelect">
+                    <option value="">Select a show</option>
+                </select>
+            </label>
+
+            <label>
+                Your Name
+                <input id="customerName" placeholder="Your name">
+            </label>
+
+            <label>
+                Email
+                <input id="customerEmail"
+                       type="email"
+                       placeholder="you@example.com">
+            </label>
+
+        </div>
+
+        <div class="screen">
+            SCREEN THIS WAY
+        </div>
+
+        <div id="seatGrid" class="seat-grid">
+            Select a show to view seats.
+        </div>
+
+        <div class="seat-legend">
+            <span>🟩 Available</span>
+            <span>🟥 Booked</span>
+            <span>🟨 Selected</span>
+        </div>
+
+        <div class="booking-bottom">
+            <p id="totalText">Total: ₹0</p>
+
+            <button class="primary-btn"
+                    onclick="bookSelectedSeats()">
+                Confirm Demo Booking
+            </button>
+        </div>
+
+        <div id="bookingMessage" class="message"></div>
+
+    </section>
+
+
+    
+    <!-- FDS ANALYTICS SECTION -->
+    <section id="analytics" class="section analytics-section">
+
+        <p class="eyebrow">FDS - DATA ANALYTICS</p>
+
+        <h2>Box Office Analytics Dashboard</h2>
+
+        <p class="muted">
+            Analyze movie revenue, show occupancy
+            and daily box office revenue using Python.
+        </p>
+
+        <div class="analytics-grid">
+
+            <div class="analytics-card">
+                <h3>Movie-wise Revenue Analysis</h3>
+
+                <img
+                    src="/analytics/movie_revenue.png"
+                    alt="Movie-wise Revenue Analysis"
+                    loading="lazy">
+            </div>
+
+            <div class="analytics-card">
+                <h3>Show-wise Seat Occupancy</h3>
+
+                <img
+                    src="/analytics/show_occupancy.png"
+                    alt="Show-wise Seat Occupancy"
+                    loading="lazy">
+            </div>
+
+            <div class="analytics-card">
+                <h3>Daily Revenue Analysis</h3>
+
+                <img
+                    src="/analytics/daily_revenue.png"
+                    alt="Daily Revenue Analysis"
+                    loading="lazy">
+            </div>
+
+        </div>
+
+        <p class="muted">
+            Generated using Python, Pandas, Matplotlib and MySQL.
+        </p>
+
+    </section>
+
+
+
+    <!-- ADMIN SECTION -->
+    <section id="admin" class="section admin-panel">
+
+        <p class="eyebrow">MANAGEMENT</p>
+
+        <h2>Admin Quick Action</h2>
+
+        <p class="muted">
+            Demo form only. Admin authentication
+            will be added in the security phase.
+        </p>
+
+        <form id="movieForm" class="form-grid">
+
+            <label>
+                Movie Title
+                <input name="title" required>
+            </label>
+
+            <label>
+                Genre
+                <input name="genre" required>
+            </label>
+
+            <label>
+                Language
+                <input name="language" required>
+            </label>
+
+            <label>
+                Duration (minutes)
+                <input name="durationMinutes"
+                       type="number"
+                       min="1"
+                       required>
+            </label>
+
+            <label>
+                Release Date
+                <input name="releaseDate"
+                       type="date"
+                       required>
+            </label>
+
+            <label>
+                Poster URL
+                <input name="posterUrl">
+            </label>
+
+            <label class="wide">
+                Description
+                <input name="description">
+            </label>
+
+            <button class="primary-btn" type="submit">
+                Add Movie
+            </button>
+
+        </form>
+
+        <div id="adminMessage" class="message"></div>
+
+    </section>
+
+</main>
+
+<footer>
+    © 2026 CineBook · College Project Demo
+</footer>
+
+<script src="/app.js"></script>
+
+</body>
+</html>
